@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Set Up Your Store — ThreadVerse{% endblock %}
+{% block extra_head %}
+<style>
+  .file-upload-area {
+    border: 2px dashed #ddd; border-radius: 8px;
+    padding: 1.2rem 1rem; text-align: center; cursor: pointer;
+    transition: border-color 0.2s; font-size: 0.82rem; color: #888;
+    position: relative;
+  }
+  .file-upload-area:hover { border-color: #224292; color: #224292; }
+  .file-upload-area input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .file-name { font-size: 0.78rem; color: #224292; margin-top: 0.4rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div style="min-height:80vh;display:flex;align-items:center;justify-content:center;padding:40px 20px">
+  <div style="max-width:480px;width:100%">
+    <div style="text-align:center;margin-bottom:36px">
+      <div style="font-size:3rem;margin-bottom:16px">🏪</div>
+      <h1 style="font-family:var(--font-display);font-size:2rem;color:var(--dark);margin-bottom:8px">Open Your Store</h1>
+      <p style="color:var(--muted)">Just a few details to start selling on ThreadVerse.</p>
+    </div>
+
+    {% if error %}
+    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:var(--radius);padding:12px 16px;color:var(--danger);font-size:0.88rem;margin-bottom:20px">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:32px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+      <div class="form-group">
+        <label class="form-label">Your Name</label>
+        <input class="form-control" value="{{ user.name }}" disabled style="opacity:0.6"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Shop Name <span style="color:var(--danger)">*</span></label>
+        <input class="form-control" name="shop_name" placeholder="e.g. Priya's Boutique" required autofocus/>
+        <small style="color:var(--muted);font-size:0.8rem;margin-top:4px;display:block">This is the name customers will see on your products.</small>
+      </div>
+
+      <div class="form-group" style="margin-top:1.25rem;">
+        <label style="font-size:0.8rem;color:#555;display:block;margin-bottom:0.4rem;font-weight:500;">
+          Verification Document
+          <span style="font-weight:400;color:#aaa;">(optional)</span>
+        </label>
+        <div class="file-upload-area">
+          📎 &nbsp;Click to upload — PDF, JPG, or PNG (max 10 MB)
+          <input type="file" name="verification_doc" id="verificationDoc"
+                 accept=".pdf,.jpg,.jpeg,.png"
+                 onchange="document.getElementById('docFileName').textContent = this.files.length ? '✓ ' + this.files[0].name : ''"/>
+        </div>
+        <div class="file-name" id="docFileName"></div>
+        <div style="font-size:0.75rem;color:#aaa;margin-top:0.4rem;">
+          Acceptable: Government ID, Aadhaar, PAN, Passport, or any official photo ID.
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-accent btn-full btn-lg" style="margin-top:20px">Launch My Store →</button>
+    </form>
+
+    <p style="text-align:center;margin-top:20px;font-size:0.88rem;color:var(--muted)">
+      <a href="/" style="color:var(--accent)">← Back to Shopping</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

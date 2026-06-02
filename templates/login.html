@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block title %}Sign In — ThreadVerse{% endblock %}
+{% block extra_head %}
+<style>
+  .login-wrapper {
+    min-height: calc(100vh - 64px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 2rem;
+    background: #f8f8f8;
+  }
+  .login-box {
+    width: 100%; max-width: 540px;
+    background: #fff;
+    border-radius: 16px;
+    padding: 3rem 2.5rem;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.06);
+  }
+
+  /* ── Step 1: Role cards ── */
+  .role-cards {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+    margin-top: 1.5rem;
+  }
+  .role-card {
+    border: 2px solid #e8e8e8;
+    border-radius: 14px;
+    padding: 2rem 1.2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s;
+    background: #fff;
+    position: relative;
+  }
+  .role-card:hover {
+    border-color: #224292;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(34,66,146,0.1);
+  }
+  .role-card.selected {
+    border-color: #224292;
+    background: #f0f4ff;
+    box-shadow: 0 4px 16px rgba(34,66,146,0.12);
+  }
+  .role-card .role-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+    display: block;
+  }
+  .role-card .role-title {
+    font-family: 'DM Serif Display','Playfair Display',serif;
+    font-size: 1.3rem;
+    font-weight: 400;
+    color: #111;
+    margin-bottom: 0.4rem;
+  }
+  .role-card .role-desc {
+    font-size: 0.78rem;
+    color: #888;
+    line-height: 1.5;
+  }
+  .role-card .role-check {
+    position: absolute; top: 12px; right: 12px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #224292;
+    color: #fff;
+    font-size: 0.7rem;
+    display: none;
+    align-items: center; justify-content: center;
+  }
+  .role-card.selected .role-check {
+    display: flex;
+  }
+
+  /* ── Step 2: Form ── */
+  .login-step { display: none; }
+  .login-step.active { display: block; }
+
+  .form-input {
+    width: 100%; padding: 0.75rem 1rem;
+    border: 1.5px solid #ddd; border-radius: 8px;
+    font-size: 0.875rem; font-family: inherit;
+    transition: border-color 0.2s;
+  }
+  .form-input:focus {
+    outline: none;
+    border-color: #224292;
+  }
+  .form-label {
+    font-size: 0.8rem; color: #555;
+    display: block; margin-bottom: 0.4rem;
+  }
+  .btn-login {
+    width: 100%; padding: 0.85rem;
+    background: #111; color: #fff;
+    border: none; border-radius: 8px;
+    cursor: pointer; font-size: 0.9rem;
+    font-weight: 500; transition: background 0.2s;
+  }
+  .btn-login:hover { background: #224292; }
+  .btn-back {
+    background: none; border: none; cursor: pointer;
+    color: #888; font-size: 0.85rem;
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    transition: color 0.2s; padding: 0;
+  }
+  .btn-back:hover { color: #111; }
+  @media (max-width: 600px) {
+    .login-box { padding: 2rem 1.25rem; border-radius: 10px; }
+    .role-cards { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .role-card { padding: 1.4rem 0.75rem; }
+    .role-card .role-icon { font-size: 1.8rem; }
+    .role-card .role-title { font-size: 1.1rem; }
+  }
+  @media (max-width: 400px) {
+    .role-cards { grid-template-columns: 1fr; }
+  }
+
+  .or-divider {
+    display: flex; align-items: center; gap: 0.75rem;
+    margin-bottom: 1.25rem; color: #bbb; font-size: 0.78rem;
+  }
+  .or-divider::before, .or-divider::after {
+    content: ''; flex: 1; height: 1px; background: #eee;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-wrapper">
+  <div class="login-box">
+
+    <!-- STEP 1: Choose Role -->
+    <div id="step-role" class="login-step active">
+      <h1 style="font-family:'DM Serif Display','Playfair Display',serif;font-size:2.2rem;font-weight:300;color:#111;text-align:center;margin-bottom:0.3rem;">Welcome to ThreadVerse</h1>
+      <p style="text-align:center;color:#888;font-size:0.875rem;">How would you like to continue?</p>
+
+      <div class="role-cards">
+        <div class="role-card" id="card-shop" onclick="selectRole('customer')">
+          <span class="role-check">✓</span>
+          <span class="role-icon">🛍️</span>
+          <div class="role-title">Shop</div>
+          <div class="role-desc">Browse collections, discover designers & shop unique fashion</div>
+        </div>
+        <div class="role-card" id="card-sell" onclick="selectRole('vendor')">
+          <span class="role-check">✓</span>
+          <span class="role-icon">🏪</span>
+          <div class="role-title">Sell</div>
+          <div class="role-desc">Set up your store, list products & reach fashion-forward buyers</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2: Login Form -->
+    <div id="step-form" class="login-step">
+      <button class="btn-back" onclick="goBack()" style="margin-bottom:1.5rem;">← Back to options</button>
+
+      <h1 style="font-family:'DM Serif Display','Playfair Display',serif;font-size:2rem;font-weight:300;color:#111;text-align:center;margin-bottom:0.3rem;">
+        Sign in to <span id="role-label">shop</span>
+      </h1>
+      <p style="text-align:center;color:#888;font-size:0.85rem;margin-bottom:1.8rem;">Enter your credentials to continue</p>
+
+      {% if error %}<div style="background:#f8d7da;color:#721c24;padding:0.75rem 1rem;border-radius:8px;margin-bottom:1rem;font-size:0.85rem;">{{ error }}</div>{% endif %}
+
+      <form method="post" action="/login?next={{ next }}">
+        {{ form.hidden_tag() }}
+        {{ form.selected_role(id="selected_role") }}
+        {{ form.next() }}
+
+        <div style="margin-bottom:1rem;">
+          {{ form.email.label(class="form-label") }}
+          {{ form.email(class="form-input", placeholder="you@example.com", required=True) }}
+          {% if form.email.errors %}
+            {% for err in form.email.errors %}<p style="color:#c0392b;font-size:0.8rem;margin-top:0.25rem;">{{ err }}</p>{% endfor %}
+          {% endif %}
+        </div>
+        <div style="margin-bottom:1.5rem;">
+          {{ form.password.label(class="form-label") }}
+          {{ form.password(class="form-input", placeholder="Your password", required=True) }}
+          {% if form.password.errors %}
+            {% for err in form.password.errors %}<p style="color:#c0392b;font-size:0.8rem;margin-top:0.25rem;">{{ err }}</p>{% endfor %}
+          {% endif %}
+        </div>
+
+        <!-- Store Selection (only visible in Shop mode) -->
+        <div id="store-picker" style="margin-bottom:1.5rem;display:none;">
+          {% if stores and stores|length > 0 %}
+          <label class="form-label">Select a Store to Browse <span style="color:#bbb;">(Optional)</span></label>
+          <select name="preferred_store" class="form-input" style="background:#fff;">
+            <option value="">All Stores</option>
+            {% for s in stores %}
+            <option value="{{ s.id }}">{{ s.shop_name or s.name }}</option>
+            {% endfor %}
+          </select>
+          {% endif %}
+        </div>
+
+        <button type="submit" class="btn-login">Sign In →</button>
+      </form>
+
+      <p style="text-align:center;margin-top:1.5rem;font-size:0.85rem;color:#888;">
+        No account? <a href="/register" style="color:#224292;font-weight:500;">Create one</a>
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let chosenRole = '';
+
+  function selectRole(role) {
+    chosenRole = role;
+
+    // Highlight chosen card
+    document.getElementById('card-shop').classList.toggle('selected', role === 'customer');
+    document.getElementById('card-sell').classList.toggle('selected', role === 'vendor');
+
+    // Brief delay for visual feedback then switch step
+    setTimeout(() => {
+      document.getElementById('step-role').classList.remove('active');
+      document.getElementById('step-form').classList.add('active');
+      document.getElementById('selected_role').value = role;
+      document.getElementById('role-label').textContent = role === 'vendor' ? 'sell' : 'shop';
+
+      // Show store picker only for shoppers
+      const picker = document.getElementById('store-picker');
+      if (picker) picker.style.display = role === 'customer' ? 'block' : 'none';
+    }, 200);
+  }
+
+  // Demo account role enforcement in UI
+  var DEMO_VENDOR_EMAIL   = 'vendor@demo.com';
+  var DEMO_CUSTOMER_EMAIL = 'customer@demo.com';
+
+  document.addEventListener('input', function(e) {
+    if (e.target.name === 'email') checkDemoEmail(e.target.value.trim().toLowerCase());
+  });
+  function checkDemoEmail(email) {
+    var cardSell = document.getElementById('card-sell');
+    var cardShop = document.getElementById('card-shop');
+    if (email === DEMO_VENDOR_EMAIL) {
+      cardShop.style.opacity = '0.4'; cardShop.style.pointerEvents = 'none';
+      cardShop.title = 'This demo account is for selling only.';
+      cardSell.style.opacity = ''; cardSell.style.pointerEvents = '';
+    } else if (email === DEMO_CUSTOMER_EMAIL) {
+      cardSell.style.opacity = '0.4'; cardSell.style.pointerEvents = 'none';
+      cardSell.title = 'This demo account is for shopping only.';
+      cardShop.style.opacity = ''; cardShop.style.pointerEvents = '';
+    } else {
+      cardShop.style.opacity = ''; cardShop.style.pointerEvents = '';
+      cardSell.style.opacity  = ''; cardSell.style.pointerEvents  = '';
+      cardShop.title = ''; cardSell.title = '';
+    }
+  }
+
+  function goBack() {
+    document.getElementById('step-form').classList.remove('active');
+    document.getElementById('step-role').classList.add('active');
+    document.getElementById('card-shop').classList.remove('selected');
+    document.getElementById('card-sell').classList.remove('selected');
+    chosenRole = '';
+  }
+
+  // If there was a form error, jump directly to step 2
+  {% if error %}
+    document.getElementById('step-role').classList.remove('active');
+    document.getElementById('step-form').classList.add('active');
+  {% endif %}
+
+  // Support ?intent=sell URL param — auto-select vendor role
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    var intent = params.get('intent');
+    if (intent === 'sell') {
+      selectRole('vendor');
+    } else if (intent === 'shop') {
+      selectRole('customer');
+    }
+  })();
+</script>
+{% endblock %}
