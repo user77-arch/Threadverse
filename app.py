@@ -204,12 +204,7 @@ def login():
             error = 'Invalid email or password. Please try again.'
 
     # Fetch store list for the store selector dropdown
-    stores = db.query("""
-        SELECT u.id, u.name, u.shop_name
-        FROM users u
-        WHERE u.role = 'vendor' AND u.shop_name IS NOT NULL AND u.shop_name <> ''
-        ORDER BY u.shop_name ASC
-    """)
+    stores = db.get_vendors()
 
     return render_template('login.html', form=form, error=error,
                            next=request.args.get('next', ''), stores=stores)
@@ -312,10 +307,7 @@ def setup_vendor():
                     fname = secure_filename(f"{user['id']}_{doc_file.filename}")
                     doc_file.save(os.path.join(UPLOAD_FOLDER, fname))
                     doc_path = fname
-            db.execute(
-                "UPDATE users SET shop_name=%s, verification_doc=%s WHERE id=%s",
-                (shop_name, doc_path, user['id'])
-            )
+            db.update_user(user['id'], shop_name=shop_name, verification_doc=doc_path)
             session['active_mode'] = 'vendor'
             return redirect(url_for('vendor_dashboard'))
     return render_template('setup_vendor.html', user=user, error=error)
@@ -476,16 +468,7 @@ def checkout_page():
 
 @app.route('/stores')
 def stores_page():
-    vendors = db.query("""
-        SELECT
-            u.id,
-            u.name,
-            u.shop_name,
-            (SELECT COUNT(*) FROM products p WHERE p.vendor_id = u.id) AS product_count
-        FROM users u
-        WHERE u.role = 'vendor' AND u.shop_name IS NOT NULL AND u.shop_name <> ''
-        ORDER BY u.shop_name ASC
-    """)
+    vendors = db.get_vendors_with_product_count()
     user = current_user()
     return render_template(
         'stores.html',
@@ -496,15 +479,13 @@ def stores_page():
 
 @app.route('/store/<store_ref>')
 def store_page(store_ref):
-    # Try matching by vendor ID (string or numeric)
-    vendor = db.query_one(
-        "SELECT id, name, shop_name FROM users WHERE id=%s AND role='vendor'",
-        (store_ref,)
-    )
+    # Try matching by vendor ID then by shop_name
+    all_vendors = db.get_vendors()
+    vendor = next((v for v in all_vendors if v['id'] == store_ref), None)
     if not vendor:
-        vendor = db.query_one(
-            "SELECT id, name, shop_name FROM users WHERE shop_name=%s AND role='vendor'",
-            (store_ref,)
+        vendor = next(
+            (v for v in all_vendors if v.get('shop_name', '').lower() == store_ref.lower()),
+            None
         )
     if not vendor:
         return "Store not found", 404
@@ -595,24 +576,22 @@ def vendor_add_product():
             error = 'Product name is required.'
             return render_template('vendor/add_product.html', user=user, error=error)
 
-        db.execute(
-            """INSERT INTO products
-               (name,category,subcategory,gender,color,sizes,price,occasion,tags,
-                rating,reviews,stock,image,description,vendor_id,vendor_name)
-               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,0,0,%s,%s,%s,%s,%s)""",
-            (name,
-             request.form.get('category','').strip().lower(),
-             request.form.get('subcategory','').strip().lower(),
-             request.form.get('gender','unisex'),
-             request.form.get('color','').strip().lower(),
-             ','.join(s.strip() for s in sizes_raw.split(',') if s.strip()),
-             price,
-             request.form.get('occasion','').strip().lower(),
-             ','.join(t.strip() for t in tags_raw.split(',') if t.strip()),
-             stock, image_url,
-             request.form.get('description','').strip(),
-             user['id'], user.get('shop_name', user['name']))
-        )
+        db.add_product({
+            'name':        name,
+            'category':    request.form.get('category', '').strip().lower(),
+            'subcategory': request.form.get('subcategory', '').strip().lower(),
+            'gender':      request.form.get('gender', 'unisex'),
+            'color':       request.form.get('color', '').strip().lower(),
+            'sizes':       [s.strip() for s in sizes_raw.split(',') if s.strip()],
+            'price':       price,
+            'occasion':    request.form.get('occasion', '').strip().lower(),
+            'tags':        [t.strip() for t in tags_raw.split(',') if t.strip()],
+            'stock':       stock,
+            'image':       image_url,
+            'description': request.form.get('description', '').strip(),
+            'vendor_id':   user['id'],
+            'vendor_name': user.get('shop_name', user['name']),
+        })
         return redirect(url_for('vendor_products'))
 
     return render_template('vendor/add_product.html', user=user, error=error)
@@ -637,24 +616,19 @@ def vendor_edit_product(product_id):
             error = 'Price and stock must be valid numbers.'
             return render_template('vendor/edit_product.html', user=user, product=product, error=error)
 
-        db.execute(
-            """UPDATE products SET
-               name=%s, category=%s, subcategory=%s, gender=%s, color=%s,
-               sizes=%s, price=%s, occasion=%s, tags=%s, stock=%s,
-               image=%s, description=%s
-               WHERE id=%s AND vendor_id=%s""",
-            (request.form.get('name','').strip(),
-             request.form.get('category','').strip().lower(),
-             request.form.get('subcategory','').strip().lower(),
-             request.form.get('gender','unisex'),
-             request.form.get('color','').strip().lower(),
-             ','.join(s.strip() for s in sizes_raw.split(',') if s.strip()),
-             price,
-             request.form.get('occasion','').strip().lower(),
-             ','.join(t.strip() for t in tags_raw.split(',') if t.strip()),
-             stock, image_url or product.get('image',''),
-             request.form.get('description','').strip(),
-             product_id, user['id'])
+        db.update_product(product_id, user['id'],
+            name=request.form.get('name', '').strip(),
+            category=request.form.get('category', '').strip().lower(),
+            subcategory=request.form.get('subcategory', '').strip().lower(),
+            gender=request.form.get('gender', 'unisex'),
+            color=request.form.get('color', '').strip().lower(),
+            sizes=[s.strip() for s in sizes_raw.split(',') if s.strip()],
+            price=price,
+            occasion=request.form.get('occasion', '').strip().lower(),
+            tags=[t.strip() for t in tags_raw.split(',') if t.strip()],
+            stock=stock,
+            image=image_url or product.get('image', ''),
+            description=request.form.get('description', '').strip(),
         )
         return redirect(url_for('vendor_products'))
 
@@ -664,16 +638,12 @@ def vendor_edit_product(product_id):
 @vendor_required
 def vendor_delete_product(product_id):
     user = current_user()
-    product = db.query_one("SELECT id FROM products WHERE id=%s AND vendor_id=%s", (product_id, user['id']))
-    if not product:
+    product = db.get_product(product_id)
+    if not product or product.get('vendor_id') != user['id']:
         flash('You can only delete products from your own store.', 'warning')
         return redirect(url_for('vendor_products'))
 
-    # Remove FK-constrained rows only after ownership is validated
-    db.execute("DELETE FROM cart WHERE product_id=%s", (product_id,))
-    db.execute("DELETE FROM wishlist WHERE product_id=%s", (product_id,))
-    db.execute("DELETE FROM order_items WHERE product_id=%s", (product_id,))
-    db.execute("DELETE FROM products WHERE id=%s AND vendor_id=%s", (product_id, user['id']))
+    db.delete_product(product_id, user['id'])
     flash('Product deleted.', 'success')
     return redirect(url_for('vendor_products'))
 
@@ -698,11 +668,10 @@ def vendor_profile():
             error = 'Password must be at least 6 characters.'
         else:
             if new_pass:
-                db.execute("UPDATE users SET name=%s, shop_name=%s, password=%s WHERE id=%s",
-                           (new_name, new_shop, db.hash_password(new_pass), user['id']))
+                db.update_user(user['id'], name=new_name, shop_name=new_shop,
+                               password=db.hash_password(new_pass))
             else:
-                db.execute("UPDATE users SET name=%s, shop_name=%s WHERE id=%s",
-                           (new_name, new_shop, user['id']))
+                db.update_user(user['id'], name=new_name, shop_name=new_shop)
             session['user_name'] = new_name
             success = 'Profile updated successfully!'
             user = current_user()
@@ -813,7 +782,7 @@ def api_wishlist_toggle():
 def api_wishlist_remove():
     sid = get_sid()
     pid = (request.json or {}).get('id')
-    db.execute("DELETE FROM wishlist WHERE session_id=%s AND product_id=%s", (sid, pid))
+    db.wishlist_remove(sid, pid)
     return jsonify({'success': True})
 
 @app.route('/api/cart/count')
